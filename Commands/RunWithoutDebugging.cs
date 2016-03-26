@@ -6,9 +6,15 @@
 
 using System;
 using System.ComponentModel.Design;
-using System.Globalization;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using EnvDTE;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Process = System.Diagnostics.Process;
 
 namespace GitHub.BhaaLseN.VSIX.Commands
 {
@@ -93,17 +99,87 @@ namespace GitHub.BhaaLseN.VSIX.Commands
         /// <param name="e">Event args.</param>
         private void MenuItemCallback(object sender, EventArgs e)
         {
-            string message = string.Format(CultureInfo.CurrentCulture, "Inside {0}.MenuItemCallback()", this.GetType().FullName);
-            string title = "RunWithoutDebugging";
+            var selectedProject = GetSelectedProject();
+            if (selectedProject == null)
+            {
+                VsShellUtilities.ShowMessageBox(
+                    ServiceProvider,
+                    "You did not select a project, or something else failed. Sorry about that.",
+                    "Start without debugging",
+                    OLEMSGICON.OLEMSGICON_WARNING,
+                    OLEMSGBUTTON.OLEMSGBUTTON_OK,
+                    OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
 
-            // Show a message box to prove we were here
-            VsShellUtilities.ShowMessageBox(
-                this.ServiceProvider,
-                message,
-                title,
-                OLEMSGICON.OLEMSGICON_INFO,
-                OLEMSGBUTTON.OLEMSGBUTTON_OK,
-                OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+                return;
+            }
+
+            // trigger a build unless we're already debugging
+            if (selectedProject.DTE.Debugger.CurrentMode == dbgDebugMode.dbgDesignMode)
+            {
+                var solutionBuild = selectedProject.DTE.Solution.SolutionBuild;
+                solutionBuild.BuildProject(solutionBuild.ActiveConfiguration.Name, selectedProject.UniqueName, true);
+            }
+
+            Properties projectProperties = selectedProject.Properties;
+            Properties activeConfigurationProperties = selectedProject.ConfigurationManager.ActiveConfiguration.Properties;
+
+            // assume an external program is started. most commonly used with class libraries
+            string executableFilePath = activeConfigurationProperties.GetPropertyValue<string>("StartProgram");
+            if (string.IsNullOrWhiteSpace(executableFilePath))
+            {
+                // in case no external program is used, take the current executable path for the currently active configuration instead
+                string fullPath = projectProperties.GetPropertyValue<string>("FullPath");
+                string outputFileName = projectProperties.GetPropertyValue<string>("OutputFileName");
+                string activeConfigurationOutputPath = activeConfigurationProperties.GetPropertyValue<string>("OutputPath");
+                executableFilePath = Path.Combine(fullPath, activeConfigurationOutputPath, outputFileName);
+            }
+
+            // grab the configured working directory, or just use the application directory as fallback
+            string workingDirectory = activeConfigurationProperties.GetPropertyValue<string>("StartWorkingDirectory");
+            if (string.IsNullOrWhiteSpace(workingDirectory))
+                workingDirectory = Path.GetDirectoryName(executableFilePath);
+
+            string arguments = activeConfigurationProperties.GetPropertyValue<string>("StartArguments");
+
+            if (File.Exists(executableFilePath))
+            {
+                Process.Start(new ProcessStartInfo(executableFilePath, arguments)
+                {
+                    WorkingDirectory = workingDirectory,
+                });
+            }
+            else
+            {
+                VsShellUtilities.ShowMessageBox(
+                    ServiceProvider,
+                    "Could not run this project, most likely there were build errors.",
+                    "Start without debugging",
+                    OLEMSGICON.OLEMSGICON_WARNING,
+                    OLEMSGBUTTON.OLEMSGBUTTON_OK,
+                    OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+            }
+        }
+
+        private static Project GetSelectedProject()
+        {
+            IVsMonitorSelection vsMonitorSelection = (IVsMonitorSelection)Package.GetGlobalService(typeof(IVsMonitorSelection));
+            IntPtr hierarchyPtr;
+            uint hierarchyItemId;
+            IVsMultiItemSelect vsMultiItemSelect;
+            IntPtr selectionContainerPtr;
+            if (ErrorHandler.Failed(vsMonitorSelection.GetCurrentSelection(out hierarchyPtr, out hierarchyItemId, out vsMultiItemSelect, out selectionContainerPtr))
+                || hierarchyPtr == IntPtr.Zero)
+                return null;
+
+            IVsHierarchy iVsHierarchy = (IVsHierarchy)Marshal.GetTypedObjectForIUnknown(hierarchyPtr, typeof(IVsHierarchy));
+            Marshal.Release(hierarchyPtr);
+            Marshal.Release(selectionContainerPtr);
+
+            object projectObj;
+            if (ErrorHandler.Failed(iVsHierarchy.GetProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_ExtObject, out projectObj)))
+                return null;
+
+            return projectObj as Project;
         }
     }
 }

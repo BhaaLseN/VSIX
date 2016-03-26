@@ -51,6 +51,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="EnvDTEExtensionMethods.cs" />
     <Compile Include="Commands\RunWithoutDebugging.cs" />
     <Compile Include="Commands\RunWithoutDebuggingPackage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
