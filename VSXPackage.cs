@@ -10,13 +10,14 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using GitHub.BhaaLseN.VSIX.Commands;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.Win32;
 
-namespace GitHub.BhaaLseN.VSIX.Commands
+namespace GitHub.BhaaLseN.VSIX
 {
     /// <summary>
     /// This is the class that implements the package exposed by this assembly.
@@ -38,9 +39,9 @@ namespace GitHub.BhaaLseN.VSIX.Commands
     [PackageRegistration(UseManagedResourcesOnly = true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [ProvideMenuResource("Menus.ctmenu", 1)]
-    [Guid(RunWithoutDebuggingPackage.PackageGuidString)]
+    [Guid(VSXPackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
-    public sealed class RunWithoutDebuggingPackage : Package
+    public sealed class VSXPackage : Package
     {
         /// <summary>
         /// RunWithoutDebuggingPackage GUID string.
@@ -48,9 +49,9 @@ namespace GitHub.BhaaLseN.VSIX.Commands
         public const string PackageGuidString = "460ec7d5-539f-4e0a-bd83-4032a409c081";
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="RunWithoutDebugging"/> class.
+        /// Initializes a new instance of the <see cref="VSXPackage"/> class.
         /// </summary>
-        public RunWithoutDebuggingPackage()
+        public VSXPackage()
         {
             // Inside this method you can place any initialization code that does not require
             // any Visual Studio service because at this point the package object is created but
