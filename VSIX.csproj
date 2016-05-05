@@ -55,6 +55,7 @@
     <Compile Include="EnvDTEExtensionMethods.cs" />
     <Compile Include="Commands\RunWithoutDebugging.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SourceControl\GitWatcher.cs" />
     <Compile Include="SourceControl\SourceControlWatcher.cs" />
     <Compile Include="VSXPackage.cs" />
   </ItemGroup>
