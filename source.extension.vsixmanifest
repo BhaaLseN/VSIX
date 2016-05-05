@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="VSIX.BhaaL.049e3c48-a760-4a3c-82e8-40792681ee5d" Version="1.0.1" Language="en-US" Publisher="BhaaL" />
+    <Identity Id="VSIX.BhaaL.049e3c48-a760-4a3c-82e8-40792681ee5d" Version="1.1" Language="en-US" Publisher="BhaaL" />
     <DisplayName>blVSX</DisplayName>
     <Description xml:space="preserve">Provides a set of useful extensions to Visual Studio</Description>
   </Metadata>
