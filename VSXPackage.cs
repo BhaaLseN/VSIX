@@ -5,11 +5,13 @@
 //------------------------------------------------------------------------------
 
 using System;
+using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Windows;
 using GitHub.BhaaLseN.VSIX.Commands;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.OLE.Interop;
@@ -38,6 +40,7 @@ namespace GitHub.BhaaLseN.VSIX
     /// </remarks>
     [PackageRegistration(UseManagedResourcesOnly = true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
+    [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(VSXPackage.PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
@@ -53,10 +56,29 @@ namespace GitHub.BhaaLseN.VSIX
         /// </summary>
         public VSXPackage()
         {
-            // Inside this method you can place any initialization code that does not require
-            // any Visual Studio service because at this point the package object is created but
-            // not sited yet inside Visual Studio environment. The place to do all the other
-            // initialization is the Initialize method.
+            // grab the title property descriptor so we can attach a value changed handler
+            var titlePropertyDescriptor = DependencyPropertyDescriptor.FromProperty(Window.TitleProperty, typeof(Window));
+            titlePropertyDescriptor.AddValueChanged(Application.Current.MainWindow, OnMainWindowTitleChanged);
+        }
+
+        private bool _thatsMeChangingTheTitle;
+        private void OnMainWindowTitleChanged(object sender, EventArgs e)
+        {
+            if (_thatsMeChangingTheTitle)
+                return;
+        }
+
+        private void SetWindowTitle(string newTitle)
+        {
+            try
+            {
+                _thatsMeChangingTheTitle = true;
+                Application.Current.MainWindow.Title = newTitle;
+            }
+            finally
+            {
+                _thatsMeChangingTheTitle = false;
+            }
         }
 
         #region Package Members
