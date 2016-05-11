@@ -72,6 +72,49 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
             // ...then check for a hash that can be resolved (most likely a detached head)
             if (head.Length == 40)
             {
+                // try the packed-refs first, when they're there; then look for unpacked refs last.
+                string packedRefsFile = Path.Combine(_gitDirectory, "packed-refs");
+                if (File.Exists(packedRefsFile))
+                {
+                    // grab all lines from the packed-refs file, and discard all that don't look like
+                    // a comment, a discarded ref or anything else that couldn't be one.
+                    var packedRefs = File.ReadAllLines(packedRefsFile)
+                        .Where(l => !string.IsNullOrWhiteSpace(l))
+                        .Where(l => l[0] != '^' && l[0] != '#' && l.Length > 42 && l.Contains(' '))
+                        .Select(l => l.Split(new[] { ' ' }, 2))
+                        .ToLookup(k => k[0], v => v[1]);
+
+                    var matchingRefs = packedRefs[head];
+                    if (matchingRefs.Any())
+                    {
+                        // we got at least one match; pick the shortest one that is a local branch,
+                        // the shortest one that is a remote branch or the shortest one that is a tag.
+                        string pickedRef = matchingRefs
+                            .OrderBy(r => r.StartsWith("refs/heads/"))
+                            .ThenBy(r => r.StartsWith("refs/remotes/"))
+                            .ThenBy(r => r.StartsWith("refs/tags/"))
+                            .ThenBy(r => r.Length)
+                            .First();
+
+                        // drop the "refs/" prefix
+                        pickedRef = pickedRef.Substring("refs/".Length);
+                        if (pickedRef.StartsWith("heads/"))
+                        {
+                            pickedRef = pickedRef.Substring("heads/".Length);
+                        }
+                        else
+                        {
+                            // this is most likely a detached ref; add brackets.
+                            if (pickedRef.StartsWith("remotes/"))
+                                pickedRef = pickedRef.Substring("remotes/".Length);
+                            pickedRef = '(' + pickedRef + ')';
+                        }
+
+                        UpdateBranchName(pickedRef);
+                        return;
+                    }
+                }
+
                 string firstMatchingFile = Directory.GetFiles(Path.Combine(_gitDirectory, "refs"), "*", SearchOption.AllDirectories)
                     .FirstOrDefault(f => FileMatchesHash(f, head));
                 if (!string.IsNullOrEmpty(firstMatchingFile))
