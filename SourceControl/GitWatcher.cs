@@ -10,7 +10,7 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
     {
         private readonly string _gitDirectory;
         private readonly string _gitHead;
-        private readonly FileSystemWatcher _headWatcher;
+        private FileSystemWatcher _headWatcher;
 
         public GitWatcher(string solutionDirectory)
             : base(solutionDirectory)
@@ -20,14 +20,40 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
             if (IsValid)
             {
                 _gitHead = Path.Combine(_gitDirectory, "HEAD");
-                _headWatcher = new FileSystemWatcher(_gitDirectory, "HEAD")
-                {
-                    IncludeSubdirectories = false,
-                };
-                _headWatcher.Changed += HEAD_Changed;
-                _headWatcher.EnableRaisingEvents = true;
+                ResetWatcher();
                 SyncBranchName();
             }
+        }
+
+        private void ResetWatcher()
+        {
+            var oldWatcher = _headWatcher;
+            if (oldWatcher != null)
+            {
+                oldWatcher.EnableRaisingEvents = false;
+                oldWatcher.Error -= Watcher_Error;
+                oldWatcher.Changed -= HEAD_Changed;
+                oldWatcher.Dispose();
+            }
+
+            var newWatcher = new FileSystemWatcher(_gitDirectory, "HEAD")
+            {
+                IncludeSubdirectories = false,
+            };
+            newWatcher.Changed += HEAD_Changed;
+            newWatcher.Error += Watcher_Error;
+            newWatcher.EnableRaisingEvents = true;
+            _headWatcher = newWatcher;
+        }
+
+        private void Watcher_Error(object sender, ErrorEventArgs e)
+        {
+            // we can't be certain what happened and react to it accordingly; so we just
+            // go and reset the watcher altogether.
+            ResetWatcher();
+            // also try to re-sync the branch name since we might've been caught somewhere
+            // in the middle of an update.
+            SyncBranchName();
         }
 
         private void HEAD_Changed(object sender, FileSystemEventArgs e)
