@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace GitHub.BhaaLseN.VSIX.SourceControl
 {
@@ -11,6 +12,7 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
         private readonly string _gitDirectory;
         private readonly string _gitHead;
         private FileSystemWatcher _headWatcher;
+        private TaskCompletionSource<bool> _continueGoing = new TaskCompletionSource<bool>();
 
         public GitWatcher(string solutionDirectory)
             : base(solutionDirectory)
@@ -22,7 +24,26 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
                 _gitHead = Path.Combine(_gitDirectory, "HEAD");
                 ResetWatcher();
                 SyncBranchName();
+                MonitorHeadChanges();
             }
+        }
+
+        private Task<bool> TheNextHeadChange()
+        {
+            return _continueGoing.Task;
+        }
+        private async void MonitorHeadChanges()
+        {
+            while (await TheNextHeadChange().ConfigureAwait(false))
+            {
+                SyncBranchName();
+            }
+        }
+        private void NotifyHeadHasChanged()
+        {
+            var oldResult = _continueGoing;
+            _continueGoing = new TaskCompletionSource<bool>();
+            oldResult.SetResult(true);
         }
 
         private void ResetWatcher()
@@ -59,7 +80,7 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
         private void HEAD_Changed(object sender, FileSystemEventArgs e)
         {
             if (e.Name == "HEAD")
-                SyncBranchName();
+                NotifyHeadHasChanged();
         }
 
         private static string FindDotGitDirectory(string solutionDirectory)
@@ -199,6 +220,7 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
             base.Dispose(disposing);
             if (disposing)
             {
+                _continueGoing.SetResult(false);
                 _headWatcher.EnableRaisingEvents = false;
                 _headWatcher.Dispose();
             }
