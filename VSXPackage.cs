@@ -80,6 +80,7 @@ namespace GitHub.BhaaLseN.VSIX
         public VSXPackage()
         {
             _dte = (DTE)GetGlobalService(typeof(DTE));
+            _dte.Events.SolutionEvents.Opened += SolutionOpened;
 
             // grab the current main window binding for Title. it shouldn't be null, since VS uses WPF Bindings.
             // if it happens to be unbound, we just revert to setting the main window title directly
@@ -104,12 +105,13 @@ namespace GitHub.BhaaLseN.VSIX
             titlePropertyDescriptor.AddValueChanged(Application.Current.MainWindow, OnMainWindowTitleChanged);
         }
 
-        private bool _thatsMeChangingTheTitle;
-        private void OnMainWindowTitleChanged(object sender, EventArgs e)
+        private void SolutionOpened()
         {
-            if (_thatsMeChangingTheTitle)
-                return;
+            PrepareSourceControlWatcher();
+        }
 
+        private void PrepareSourceControlWatcher()
+        {
             if (_dte.Solution.IsOpen)
             {
                 string solutionFilePath = _dte.Solution.FullName;
@@ -136,6 +138,15 @@ namespace GitHub.BhaaLseN.VSIX
             _originalWindowTitle = Application.Current.MainWindow.Title;
             BranchName = SourceControlWatcher.BranchName;
             UpdateMainWindowTitle();
+        }
+
+        private bool _thatsMeChangingTheTitle;
+        private void OnMainWindowTitleChanged(object sender, EventArgs e)
+        {
+            if (_thatsMeChangingTheTitle)
+                return;
+
+            PrepareSourceControlWatcher();
         }
 
         private void OnBranchNameChanged(object sender, EventArgs e)
