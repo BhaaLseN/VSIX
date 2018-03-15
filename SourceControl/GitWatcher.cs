@@ -53,6 +53,8 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
             {
                 oldWatcher.EnableRaisingEvents = false;
                 oldWatcher.Error -= Watcher_Error;
+                oldWatcher.Created -= HEAD_Changed;
+                oldWatcher.Renamed -= HEAD_Changed;
                 oldWatcher.Changed -= HEAD_Changed;
                 oldWatcher.Dispose();
             }
@@ -60,8 +62,11 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
             var newWatcher = new FileSystemWatcher(_gitDirectory, "HEAD")
             {
                 IncludeSubdirectories = false,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastAccess | NotifyFilters.LastWrite,
             };
             newWatcher.Changed += HEAD_Changed;
+            newWatcher.Renamed += HEAD_Changed;
+            newWatcher.Created += HEAD_Changed;
             newWatcher.Error += Watcher_Error;
             newWatcher.EnableRaisingEvents = true;
             _headWatcher = newWatcher;
@@ -79,7 +84,7 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
 
         private void HEAD_Changed(object sender, FileSystemEventArgs e)
         {
-            if (e.Name == "HEAD")
+            if (string.Equals(e.Name, "HEAD", StringComparison.OrdinalIgnoreCase))
                 NotifyHeadHasChanged();
         }
 
