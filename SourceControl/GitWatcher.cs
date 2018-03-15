@@ -13,6 +13,7 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
         private readonly string _gitHead;
         private FileSystemWatcher _headWatcher;
         private TaskCompletionSource<bool> _continueGoing = new TaskCompletionSource<bool>();
+        private string _lastHeadRef;
 
         public GitWatcher(string solutionDirectory)
             : base(solutionDirectory)
@@ -112,6 +113,10 @@ namespace GitHub.BhaaLseN.VSIX.SourceControl
         private void SyncBranchName()
         {
             string head = ReadHeadRef();
+            // no need to do this work if nothing changed.
+            if (string.IsNullOrWhiteSpace(head) || head == _lastHeadRef)
+                return;
+            _lastHeadRef = head;
 
             // check if we got a refspec first...
             var match = LocalBranchRef.Match(head);
