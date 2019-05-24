@@ -18,6 +18,7 @@ using GitHub.BhaaLseN.VSIX.Converters;
 using GitHub.BhaaLseN.VSIX.SourceControl;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using DTE = EnvDTE.DTE;
 using TTask = System.Threading.Tasks.Task;
 
@@ -49,6 +50,7 @@ namespace GitHub.BhaaLseN.VSIX
     public sealed class VSXPackage : AsyncPackage
     {
         private readonly DTE _dte;
+        private readonly SolutionEventListener _solutionEventListener;
         private string _originalWindowTitle;
         private readonly BindingExpression _titleBindingExpression;
         private SourceControlWatcher _sourceControlWatcher;
@@ -83,6 +85,8 @@ namespace GitHub.BhaaLseN.VSIX
         {
             _dte = (DTE)GetGlobalService(typeof(DTE));
             _dte.Events.SolutionEvents.Opened += SolutionOpened;
+            _solutionEventListener = new SolutionEventListener((IVsSolution)GetGlobalService(typeof(SVsSolution)));
+            _solutionEventListener.AfterSolutionLoaded += SolutionOpened;
 
             // grab the current main window binding for Title. it shouldn't be null, since VS uses WPF Bindings.
             // if it happens to be unbound, we just revert to setting the main window title directly
