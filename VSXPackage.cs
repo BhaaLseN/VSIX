@@ -10,6 +10,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Threading;
@@ -17,10 +18,9 @@ using GitHub.BhaaLseN.VSIX.Commands;
 using GitHub.BhaaLseN.VSIX.Converters;
 using GitHub.BhaaLseN.VSIX.SourceControl;
 using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using DTE = EnvDTE.DTE;
-using TTask = System.Threading.Tasks.Task;
+using MVSS = Microsoft.VisualStudio.Shell;
 
 namespace GitHub.BhaaLseN.VSIX
 {
@@ -41,13 +41,13 @@ namespace GitHub.BhaaLseN.VSIX
     /// To get loaded into VS, the package must be referred by &lt;Asset Type="Microsoft.VisualStudio.VsPackage" ...&gt; in .vsixmanifest file.
     /// </para>
     /// </remarks>
-    [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
-    [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
-    [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string)]
-    [ProvideMenuResource("Menus.ctmenu", 1)]
-    [Guid(VSXPackage.PackageGuidString)]
+    [MVSS.PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
+    [MVSS.InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
+    [MVSS.ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string)]
+    [MVSS.ProvideMenuResource("Menus.ctmenu", 1)]
+    [Guid(PackageGuidString)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
-    public sealed class VSXPackage : AsyncPackage
+    public sealed class VSXPackage : MVSS.AsyncPackage
     {
         private readonly DTE _dte;
         private readonly SolutionEventListener _solutionEventListener;
@@ -73,14 +73,10 @@ namespace GitHub.BhaaLseN.VSIX
             }
         }
 
-        /// <summary>
-        /// RunWithoutDebuggingPackage GUID string.
-        /// </summary>
+        /// <summary>RunWithoutDebuggingPackage GUID string.</summary>
         public const string PackageGuidString = "460ec7d5-539f-4e0a-bd83-4032a409c081";
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="VSXPackage"/> class.
-        /// </summary>
+        /// <summary>Initializes a new instance of the <see cref="VSXPackage"/> class.</summary>
         public VSXPackage()
         {
             _dte = (DTE)GetGlobalService(typeof(DTE));
@@ -196,7 +192,7 @@ namespace GitHub.BhaaLseN.VSIX
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override TTask InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
+        protected override Task InitializeAsync(CancellationToken cancellationToken, IProgress<MVSS.ServiceProgressData> progress)
         {
             RunWithoutDebugging.Initialize(this);
             return base.InitializeAsync(cancellationToken, progress);

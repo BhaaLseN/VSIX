@@ -8,7 +8,6 @@ using System;
 using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using EnvDTE;
 using Microsoft.VisualStudio;
@@ -18,25 +17,17 @@ using Process = System.Diagnostics.Process;
 
 namespace GitHub.BhaaLseN.VSIX.Commands
 {
-    /// <summary>
-    /// Command handler
-    /// </summary>
+    /// <summary>Command handler for "Run without debugging"</summary>
     internal sealed class RunWithoutDebugging
     {
-        /// <summary>
-        /// Command ID.
-        /// </summary>
+        /// <summary>Command ID.</summary>
         public const int CommandId = 0x0100;
 
-        /// <summary>
-        /// Command menu group (command set GUID).
-        /// </summary>
+        /// <summary>Command menu group (command set GUID).</summary>
         public static readonly Guid CommandSet = new Guid("2117f9a0-9a36-47a8-8c58-b3d6994dab1f");
 
-        /// <summary>
-        /// VS Package that provides this command, not null.
-        /// </summary>
-        private readonly Package package;
+        /// <summary>VS Package that provides this command, not null.</summary>
+        private readonly Package _package;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RunWithoutDebugging"/> class.
@@ -45,45 +36,24 @@ namespace GitHub.BhaaLseN.VSIX.Commands
         /// <param name="package">Owner package, not null.</param>
         private RunWithoutDebugging(Package package)
         {
-            if (package == null)
-            {
-                throw new ArgumentNullException("package");
-            }
+            _package = package ?? throw new ArgumentNullException(nameof(package));
 
-            this.package = package;
-
-            OleMenuCommandService commandService = this.ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
+            var commandService = ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (commandService != null)
             {
                 var menuCommandID = new CommandID(CommandSet, CommandId);
-                var menuItem = new MenuCommand(this.MenuItemCallback, menuCommandID);
+                var menuItem = new MenuCommand(MenuItemCallback, menuCommandID);
                 commandService.AddCommand(menuItem);
             }
         }
 
-        /// <summary>
-        /// Gets the instance of the command.
-        /// </summary>
-        public static RunWithoutDebugging Instance
-        {
-            get;
-            private set;
-        }
+        /// <summary>Gets the instance of the command.</summary>
+        public static RunWithoutDebugging Instance { get; private set; }
 
-        /// <summary>
-        /// Gets the service provider from the owner package.
-        /// </summary>
-        private IServiceProvider ServiceProvider
-        {
-            get
-            {
-                return this.package;
-            }
-        }
+        /// <summary>Gets the service provider from the owner package.</summary>
+        private IServiceProvider ServiceProvider => _package;
 
-        /// <summary>
-        /// Initializes the singleton instance of the command.
-        /// </summary>
+        /// <summary>Initializes the singleton instance of the command.</summary>
         /// <param name="package">Owner package, not null.</param>
         public static void Initialize(Package package)
         {
@@ -120,8 +90,8 @@ namespace GitHub.BhaaLseN.VSIX.Commands
                 solutionBuild.BuildProject(solutionBuild.ActiveConfiguration.Name, selectedProject.UniqueName, true);
             }
 
-            Properties projectProperties = selectedProject.Properties;
-            Properties activeConfigurationProperties = selectedProject.ConfigurationManager.ActiveConfiguration.Properties;
+            var projectProperties = selectedProject.Properties;
+            var activeConfigurationProperties = selectedProject.ConfigurationManager.ActiveConfiguration.Properties;
 
             // assume an external program is started. most commonly used with class libraries
             string executableFilePath = activeConfigurationProperties.GetPropertyValue<string>("StartProgram");
@@ -162,21 +132,18 @@ namespace GitHub.BhaaLseN.VSIX.Commands
 
         private static Project GetSelectedProject()
         {
-            IVsMonitorSelection vsMonitorSelection = (IVsMonitorSelection)Package.GetGlobalService(typeof(IVsMonitorSelection));
-            IntPtr hierarchyPtr;
-            uint hierarchyItemId;
-            IVsMultiItemSelect vsMultiItemSelect;
-            IntPtr selectionContainerPtr;
-            if (ErrorHandler.Failed(vsMonitorSelection.GetCurrentSelection(out hierarchyPtr, out hierarchyItemId, out vsMultiItemSelect, out selectionContainerPtr))
+            var vsMonitorSelection = (IVsMonitorSelection)Package.GetGlobalService(typeof(IVsMonitorSelection));
+            if (ErrorHandler.Failed(vsMonitorSelection.GetCurrentSelection(out var hierarchyPtr, out _, out _, out var selectionContainerPtr))
                 || hierarchyPtr == IntPtr.Zero)
+            {
                 return null;
+            }
 
-            IVsHierarchy iVsHierarchy = (IVsHierarchy)Marshal.GetTypedObjectForIUnknown(hierarchyPtr, typeof(IVsHierarchy));
+            var iVsHierarchy = (IVsHierarchy)Marshal.GetTypedObjectForIUnknown(hierarchyPtr, typeof(IVsHierarchy));
             Marshal.Release(hierarchyPtr);
             Marshal.Release(selectionContainerPtr);
 
-            object projectObj;
-            if (ErrorHandler.Failed(iVsHierarchy.GetProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_ExtObject, out projectObj)))
+            if (ErrorHandler.Failed(iVsHierarchy.GetProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_ExtObject, out object projectObj)))
                 return null;
 
             return projectObj as Project;
