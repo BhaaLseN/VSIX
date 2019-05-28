@@ -50,10 +50,10 @@ namespace GitHub.BhaaLseN.VSIX
     public sealed class VSXPackage : MVSS.AsyncPackage
     {
         // this DTE member is required to keep the com object reference alive; otherwise the events may not fire when the other side is collected.
-        private readonly DTE _dte;
-        private readonly SolutionEventListener _solutionEventListener;
+        private DTE _dte;
+        private SolutionEventListener _solutionEventListener;
         private string _originalWindowTitle;
-        private readonly BindingExpression _titleBindingExpression;
+        private BindingExpression _titleBindingExpression;
         private SourceControlWatcher _sourceControlWatcher;
 
         private SourceControlWatcher SourceControlWatcher
@@ -80,32 +80,6 @@ namespace GitHub.BhaaLseN.VSIX
         /// <summary>Initializes a new instance of the <see cref="VSXPackage"/> class.</summary>
         public VSXPackage()
         {
-            _dte = (DTE)GetGlobalService(typeof(DTE));
-            _dte.Events.SolutionEvents.Opened += SolutionOpened;
-            _solutionEventListener = new SolutionEventListener((IVsSolution)GetGlobalService(typeof(SVsSolution)));
-            _solutionEventListener.AfterSolutionLoaded += SolutionOpened;
-
-            // grab the current main window binding for Title. it shouldn't be null, since VS uses WPF Bindings.
-            // if it happens to be unbound, we just revert to setting the main window title directly
-            var titleBindingExpression = Application.Current.MainWindow.GetBindingExpression(Window.TitleProperty);
-            if (titleBindingExpression != null && titleBindingExpression.ParentBinding != null)
-            {
-                var titleBinding = titleBindingExpression.ParentBinding;
-                // duplicate the binding and insert our own converter to prepend the branch name
-                var newTitleBinding = new Binding
-                {
-                    Converter = new SourceControlWindowTitleConverter(this, titleBinding.Converter),
-                    Path = titleBinding.Path,
-                };
-
-                Application.Current.MainWindow.SetBinding(Window.TitleProperty, newTitleBinding);
-                // remember the binding expression so we can force an update when the branch name changes
-                _titleBindingExpression = Application.Current.MainWindow.GetBindingExpression(Window.TitleProperty);
-            }
-
-            // grab the title property descriptor so we can attach a value changed handler
-            var titlePropertyDescriptor = DependencyPropertyDescriptor.FromProperty(Window.TitleProperty, typeof(Window));
-            titlePropertyDescriptor.AddValueChanged(Application.Current.MainWindow, OnMainWindowTitleChanged);
         }
 
         private void SolutionOpened()
@@ -187,16 +161,48 @@ namespace GitHub.BhaaLseN.VSIX
             }
         }
 
+        private async Task InitializeSolutionTracking(CancellationToken cancellationToken)
+        {
+            _dte = (DTE)await GetServiceAsync(typeof(DTE));
+            _dte.Events.SolutionEvents.Opened += SolutionOpened;
+            _solutionEventListener = new SolutionEventListener((IVsSolution)await GetServiceAsync(typeof(SVsSolution)));
+            _solutionEventListener.AfterSolutionLoaded += SolutionOpened;
+
+            await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            // grab the current main window binding for Title. it shouldn't be null, since VS uses WPF Bindings.
+            // if it happens to be unbound, we just revert to setting the main window title directly
+            var titleBindingExpression = Application.Current.MainWindow.GetBindingExpression(Window.TitleProperty);
+            if (titleBindingExpression != null && titleBindingExpression.ParentBinding != null)
+            {
+                var titleBinding = titleBindingExpression.ParentBinding;
+                // duplicate the binding and insert our own converter to prepend the branch name
+                var newTitleBinding = new Binding
+                {
+                    Converter = new SourceControlWindowTitleConverter(this, titleBinding.Converter),
+                    Path = titleBinding.Path,
+                };
+
+                Application.Current.MainWindow.SetBinding(Window.TitleProperty, newTitleBinding);
+                // remember the binding expression so we can force an update when the branch name changes
+                _titleBindingExpression = Application.Current.MainWindow.GetBindingExpression(Window.TitleProperty);
+            }
+
+            // grab the title property descriptor so we can attach a value changed handler
+            var titlePropertyDescriptor = DependencyPropertyDescriptor.FromProperty(Window.TitleProperty, typeof(Window));
+            titlePropertyDescriptor.AddValueChanged(Application.Current.MainWindow, OnMainWindowTitleChanged);
+        }
+
         #region Package Members
 
         /// <summary>
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
         /// where you can put all the initialization code that rely on services provided by VisualStudio.
         /// </summary>
-        protected override Task InitializeAsync(CancellationToken cancellationToken, IProgress<MVSS.ServiceProgressData> progress)
+        protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<MVSS.ServiceProgressData> progress)
         {
-            RunWithoutDebugging.Initialize(this);
-            return base.InitializeAsync(cancellationToken, progress);
+            await RunWithoutDebugging.InitializeAsync(this);
+            await InitializeSolutionTracking(cancellationToken);
+            await base.InitializeAsync(cancellationToken, progress);
         }
         #endregion
     }
