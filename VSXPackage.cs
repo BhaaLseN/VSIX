@@ -8,11 +8,15 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using System.Windows.Threading;
 using GitHub.BhaaLseN.VSIX.Commands;
 using GitHub.BhaaLseN.VSIX.Converters;
@@ -54,6 +58,7 @@ namespace GitHub.BhaaLseN.VSIX
         private SolutionEventListener _solutionEventListener;
         private string _originalWindowTitle;
         private BindingExpression _titleBindingExpression;
+        private BindingExpression _badgeBindingExpression;
         private SourceControlWatcher _sourceControlWatcher;
 
         private SourceControlWatcher SourceControlWatcher
@@ -146,6 +151,8 @@ namespace GitHub.BhaaLseN.VSIX
                 if (!string.IsNullOrEmpty(BranchName))
                     SetWindowTitle(string.Format("{0} - {1}", BranchName, _originalWindowTitle));
             }
+            if (_badgeBindingExpression != null)
+                Application.Current.Dispatcher.InvokeAsync(_badgeBindingExpression.UpdateTarget, DispatcherPriority.DataBind);
         }
 
         private void SetWindowTitle(string newTitle)
@@ -201,11 +208,89 @@ namespace GitHub.BhaaLseN.VSIX
             var titlePropertyDescriptor = DependencyPropertyDescriptor.FromProperty(Window.TitleProperty, typeof(Window));
             titlePropertyDescriptor.AddValueChanged(Application.Current.MainWindow, OnMainWindowTitleChanged);
 
+            // Visual Studio 2019 only: the title bar has a badge thingy with the solution name. we want to append the branch name there.
+            UpdateVisualStudio2019SolutionBadge();
+
             // Since this package might not be initialized until after a solution has finished loading,
             // we need to check if a solution has already been loaded and then handle it.
             bool isSolutionLoaded = await IsSolutionLoadedAsync();
             if (isSolutionLoaded)
                 SolutionOpened();
+        }
+
+        private void UpdateVisualStudio2019SolutionBadge()
+        {
+            // Visual Studio 2019 has an (internal) control named SolutionInfoControl which has a text binding in there.
+            // We'll use this as a marker to see if we even have to do the control searching or not.
+            var solutionInfoControlType = Type.GetType("Microsoft.VisualStudio.PlatformUI.SolutionInfoControl, Microsoft.VisualStudio.Shell.UI.Internal", false);
+            if (solutionInfoControlType == null)
+                return;
+            // The type alone is not enough, it has a (default-)Style that should be there; if not it might be something else we should be looking at...
+            if (!(Application.Current.MainWindow.TryFindResource(solutionInfoControlType) is Style))
+                return;
+
+            // the title badge contains the aforementioned SolutionInfoControl, but it is internal.
+            // the next best type that isn't in some other assembly not referenced by this project is UserControl.
+            var titleBarBadge = FindChild<UserControl>(Application.Current.MainWindow, "PART_SolutionNameTextBlock");
+            if (titleBarBadge == null)
+                return;
+
+            // being an internal type, the dependency property is unreachable to us.
+            // technically it isn't, but the base type TabItemTextControl is in an assembly that shouldn't be referenced directly for VS2017 compatibility.
+            var textPropertyMember = titleBarBadge
+                 .GetType()
+                 .GetMember("TextProperty", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy)
+                 .FirstOrDefault() as FieldInfo;
+            if (!(textPropertyMember?.GetValue(null) is DependencyProperty textProperty))
+                return;
+
+            var textBindingExpression = titleBarBadge.GetBindingExpression(textProperty);
+            if (textBindingExpression?.ParentBinding == null)
+                return;
+
+            var textBinding = textBindingExpression.ParentBinding;
+            // duplicate the binding and insert our own converter to append the branch name
+            var newTextBinding = new Binding
+            {
+                Converter = new SourceControlWindowTitleConverter(this, textBinding.Converter, TitleConverterPlacement.Back, TitleConverterSeparator.Pipe),
+                Path = textBinding.Path,
+            };
+
+            titleBarBadge.SetBinding(textProperty, newTextBinding);
+            // remember the binding expression so we can force an update when the branch name changes
+            _badgeBindingExpression = titleBarBadge.GetBindingExpression(textProperty);
+        }
+
+        private static T FindChild<T>(DependencyObject parent, string childName) where T : DependencyObject
+        {
+            if (parent == null)
+                return null;
+
+            int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childrenCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (!(child is T))
+                {
+                    T foundChild = FindChild<T>(child, childName);
+
+                    if (foundChild != null)
+                        return foundChild;
+                }
+                else if (!string.IsNullOrEmpty(childName))
+                {
+                    if (child is FrameworkElement frameworkElement && frameworkElement.Name == childName)
+                    {
+                        return (T)child;
+                    }
+                }
+                else
+                {
+                    return (T)child;
+                }
+            }
+
+            return null;
         }
 
         #region Package Members
