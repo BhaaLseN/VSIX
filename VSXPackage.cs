@@ -161,6 +161,16 @@ namespace GitHub.BhaaLseN.VSIX
             }
         }
 
+        private async Task<bool> IsSolutionLoadedAsync()
+        {
+            await JoinableTaskFactory.SwitchToMainThreadAsync();
+            var solService = await GetServiceAsync(typeof(SVsSolution)) as IVsSolution;
+
+            ErrorHandler.ThrowOnFailure(solService.GetProperty((int)__VSPROPID.VSPROPID_IsSolutionOpen, out object value));
+
+            return value is bool isSolOpen && isSolOpen;
+        }
+
         private async Task InitializeSolutionTracking(CancellationToken cancellationToken)
         {
             _dte = (DTE)await GetServiceAsync(typeof(DTE));
@@ -190,6 +200,12 @@ namespace GitHub.BhaaLseN.VSIX
             // grab the title property descriptor so we can attach a value changed handler
             var titlePropertyDescriptor = DependencyPropertyDescriptor.FromProperty(Window.TitleProperty, typeof(Window));
             titlePropertyDescriptor.AddValueChanged(Application.Current.MainWindow, OnMainWindowTitleChanged);
+
+            // Since this package might not be initialized until after a solution has finished loading,
+            // we need to check if a solution has already been loaded and then handle it.
+            bool isSolutionLoaded = await IsSolutionLoadedAsync();
+            if (isSolutionLoaded)
+                SolutionOpened();
         }
 
         #region Package Members
