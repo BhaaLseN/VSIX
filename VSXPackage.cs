@@ -49,6 +49,7 @@ namespace GitHub.BhaaLseN.VSIX
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     public sealed class VSXPackage : MVSS.AsyncPackage
     {
+        // this DTE member is required to keep the com object reference alive; otherwise the events may not fire when the other side is collected.
         private readonly DTE _dte;
         private readonly SolutionEventListener _solutionEventListener;
         private string _originalWindowTitle;
