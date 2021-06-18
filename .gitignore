@@ -6,3 +6,5 @@ bin/
 obj/
 /Key.snk
 .vs/
+.cr/
+
