@@ -3,9 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31321.278
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VSIX.Dev16", "VSIX.Dev16.csproj", "{39DA5B85-B8BC-4733-9D96-DBDCE4EFE1FA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VSIX.Dev16", "VSIX.Dev16\VSIX.Dev16.csproj", "{39DA5B85-B8BC-4733-9D96-DBDCE4EFE1FA}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "VSIX", "VSIX.shproj", "{DDBC2A37-FAB0-4AF8-A133-5667002EDD88}"
 EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		VSIX.projitems*{39da5b85-b8bc-4733-9d96-dbdce4efe1fa}*SharedItemsImports = 4
+		VSIX.projitems*{ddbc2a37-fab0-4af8-a133-5667002edd88}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU

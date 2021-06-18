@@ -17,7 +17,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>Key.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\Key.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -59,17 +59,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Converters\SourceControlWindowTitleConverter.cs" />
-    <Compile Include="EnvDTEExtensionMethods.cs" />
-    <Compile Include="Commands\RunWithoutDebugging.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SolutionEventListener.cs" />
-    <Compile Include="SourceControl\GitWatcher.cs" />
-    <Compile Include="SourceControl\SourceControlWatcher.cs" />
-    <Compile Include="VSXPackage.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Key.snk" />
+    <None Include="..\Key.snk" />
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
     </None>
@@ -118,20 +108,15 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <VSCTCompile Include="VSXPackage.vsct">
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <VSCTCompile Include="..\VSXPackage.vsct">
+      <Link>VSXPackage.vsct</Link>
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
   </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\VSPackage.resx">
-      <MergeWithCTO>true</MergeWithCTO>
-      <ManifestResourceName>VSPackage</ManifestResourceName>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Resources\VSXPackage.ico" />
-  </ItemGroup>
+  <Import Project="..\VSIX.projitems" Label="Shared" />
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.ProjectSystem">
       <Version>16.2.133-pre</Version>
