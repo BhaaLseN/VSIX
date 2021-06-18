@@ -7,9 +7,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VSIX.Dev16", "VSIX.Dev16\VS
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "VSIX", "VSIX.shproj", "{DDBC2A37-FAB0-4AF8-A133-5667002EDD88}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VSIX.Dev17", "VSIX.Dev17\VSIX.Dev17.csproj", "{B262FBE9-1D23-4674-B4F6-D6791E1FECA4}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		VSIX.projitems*{39da5b85-b8bc-4733-9d96-dbdce4efe1fa}*SharedItemsImports = 4
+		VSIX.projitems*{b262fbe9-1d23-4674-b4f6-d6791e1feca4}*SharedItemsImports = 4
 		VSIX.projitems*{ddbc2a37-fab0-4af8-a133-5667002edd88}*SharedItemsImports = 13
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +24,10 @@ Global
 		{39DA5B85-B8BC-4733-9D96-DBDCE4EFE1FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{39DA5B85-B8BC-4733-9D96-DBDCE4EFE1FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{39DA5B85-B8BC-4733-9D96-DBDCE4EFE1FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B262FBE9-1D23-4674-B4F6-D6791E1FECA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B262FBE9-1D23-4674-B4F6-D6791E1FECA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B262FBE9-1D23-4674-B4F6-D6791E1FECA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B262FBE9-1D23-4674-B4F6-D6791E1FECA4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
