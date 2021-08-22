@@ -198,7 +198,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Resources\Commands\RunWithoutDebugging.png" />
     <Content Include="Resources\VSXPackage.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
