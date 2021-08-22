@@ -75,7 +75,11 @@ namespace GitHub.BhaaLseN.VSIX
                 _sourceControlWatcher = value;
 
                 if (_sourceControlWatcher != null)
+                {
                     _sourceControlWatcher.BranchNameChanged += OnBranchNameChanged;
+                    // force a sync, we probably missed the first event by now.
+                    OnBranchNameChanged(_sourceControlWatcher, EventArgs.Empty);
+                }
             }
         }
 
