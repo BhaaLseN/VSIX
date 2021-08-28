@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using EnvDTE;
 using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.ProjectSystem.Properties;
 using Microsoft.VisualStudio.Shell.Interop;
 using MVSS = Microsoft.VisualStudio.Shell;
 using Process = System.Diagnostics.Process;
@@ -65,7 +66,7 @@ namespace GitHub.BhaaLseN.VSIX.Commands
         /// <param name="e">Event args.</param>
         private async void MenuItemCallback(object sender, EventArgs e)
         {
-            var selectedProject = await GetSelectedProject();
+            var (selectedProject, executableFilePath, arguments, workingDirectory) = await GetSelectedProjectData();
             if (selectedProject == null)
             {
                 MVSS.VsShellUtilities.ShowMessageBox(
@@ -86,27 +87,6 @@ namespace GitHub.BhaaLseN.VSIX.Commands
                 solutionBuild.BuildProject(solutionBuild.ActiveConfiguration.Name, selectedProject.UniqueName, true);
             }
 
-            var projectProperties = selectedProject.Properties;
-            var activeConfigurationProperties = selectedProject.ConfigurationManager.ActiveConfiguration.Properties;
-
-            // assume an external program is started. most commonly used with class libraries
-            string executableFilePath = activeConfigurationProperties.GetPropertyValue<string>("StartProgram");
-            if (string.IsNullOrWhiteSpace(executableFilePath))
-            {
-                // in case no external program is used, take the current executable path for the currently active configuration instead
-                string fullPath = projectProperties.GetPropertyValue<string>("FullPath");
-                string outputFileName = projectProperties.GetPropertyValue<string>("OutputFileName");
-                string activeConfigurationOutputPath = activeConfigurationProperties.GetPropertyValue<string>("OutputPath");
-                executableFilePath = Path.Combine(fullPath, activeConfigurationOutputPath, outputFileName);
-            }
-
-            // grab the configured working directory, or just use the application directory as fallback
-            string workingDirectory = activeConfigurationProperties.GetPropertyValue<string>("StartWorkingDirectory");
-            if (string.IsNullOrWhiteSpace(workingDirectory))
-                workingDirectory = Path.GetDirectoryName(executableFilePath);
-
-            string arguments = activeConfigurationProperties.GetPropertyValue<string>("StartArguments");
-
             if (File.Exists(executableFilePath))
             {
                 Process.Start(new ProcessStartInfo(executableFilePath, arguments)
@@ -126,23 +106,72 @@ namespace GitHub.BhaaLseN.VSIX.Commands
             }
         }
 
-        private async Task<Project> GetSelectedProject()
+        private async Task<(Project SelectedProject, string ExecutableFilePath, string Arguments, string WorkingDirectory)> GetSelectedProjectData()
         {
             var vsMonitorSelection = (IVsMonitorSelection)await _package.GetServiceAsync(typeof(IVsMonitorSelection));
             if (ErrorHandler.Failed(vsMonitorSelection.GetCurrentSelection(out var hierarchyPtr, out _, out _, out var selectionContainerPtr))
                 || hierarchyPtr == IntPtr.Zero)
             {
-                return null;
+                return default;
             }
 
+            var iVsProject = (IVsProject)Marshal.GetTypedObjectForIUnknown(hierarchyPtr, typeof(IVsProject));
             var iVsHierarchy = (IVsHierarchy)Marshal.GetTypedObjectForIUnknown(hierarchyPtr, typeof(IVsHierarchy));
             Marshal.Release(hierarchyPtr);
             Marshal.Release(selectionContainerPtr);
 
             if (ErrorHandler.Failed(iVsHierarchy.GetProperty((uint)VSConstants.VSITEMID.Root, (int)__VSHPROPID.VSHPROPID_ExtObject, out object projectObj)))
-                return null;
+                return default;
+            if (!(projectObj is Project project))
+                return default;
 
-            return projectObj as Project;
+            var browseContext = iVsProject as IVsBrowseObjectContext ?? project.Object as IVsBrowseObjectContext;
+            if (browseContext == null)
+            {
+                // likely an old-style project, such as .NET Framework
+                var projectProperties = project.Properties;
+                var activeConfigurationProperties = project.ConfigurationManager.ActiveConfiguration.Properties;
+
+                // assume an external program is started. most commonly used with class libraries
+                string executableFilePath = activeConfigurationProperties.GetPropertyValue<string>("StartProgram");
+                if (string.IsNullOrWhiteSpace(executableFilePath))
+                {
+                    // in case no external program is used, take the current executable path for the currently active configuration instead
+                    string fullPath = projectProperties.GetPropertyValue<string>("FullPath");
+                    string outputFileName = projectProperties.GetPropertyValue<string>("OutputFileName");
+                    string activeConfigurationOutputPath = activeConfigurationProperties.GetPropertyValue<string>("OutputPath");
+                    executableFilePath = Path.Combine(fullPath, activeConfigurationOutputPath, outputFileName);
+                }
+
+                // grab the configured working directory, or just use the application directory as fallback
+                string workingDirectory = activeConfigurationProperties.GetPropertyValue<string>("StartWorkingDirectory");
+                if (string.IsNullOrWhiteSpace(workingDirectory))
+                    workingDirectory = Path.GetDirectoryName(executableFilePath);
+
+                string arguments = activeConfigurationProperties.GetPropertyValue<string>("StartArguments");
+
+                return (project, executableFilePath, arguments, workingDirectory);
+            }
+
+            // still here? this is a project supported by the Common Project System (CPS; such as .NET Core/.NET 5+)
+            var unconfiguredProject = browseContext.UnconfiguredProject;
+            var configuredProject = await unconfiguredProject.GetSuggestedConfiguredProjectAsync();
+            if (configuredProject == null)
+                return default;
+
+            string runCommand;
+            string runWorkingDirectory;
+            string runArguments;
+            var projectLockService = unconfiguredProject.ProjectService.Services.ProjectLockService;
+            using (var access = await projectLockService.ReadLockAsync())
+            {
+                var msBuildProject = await access.GetProjectAsync(configuredProject);
+                runCommand = msBuildProject.GetPropertyValue("RunCommand");
+                runWorkingDirectory = msBuildProject.GetPropertyValue("RunWorkingDirectory");
+                runArguments = msBuildProject.GetPropertyValue("RunArguments");
+            }
+
+            return (project, runCommand, runArguments, runWorkingDirectory);
         }
     }
 }
